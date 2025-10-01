@@ -9,12 +9,12 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-Explain how your project works
+Basically it helps you control signals without the help of the CPU. That way, your CPU can be used to do cooler things :D
 
 ## How to test
 
-Explain how to use your project
+man idk you just test it ig
 
 ## External hardware
 
-List external hardware used in your project (e.g. PMOD, LED display, etc), if any
+the only external hardware is my tears
