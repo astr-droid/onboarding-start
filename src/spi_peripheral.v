@@ -17,7 +17,6 @@ module spi_peripheral (
     // 1. Synchronize asynchronous signals
     // -------------------------------
     reg [1:0] nCS_sync, SCLK_sync, COPI_sync;
-
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             nCS_sync  <= 2'b11;
@@ -44,46 +43,46 @@ module spi_peripheral (
         else
             SCLK_prev <= SCLK_s;
     end
-
     wire SCLK_rising = SCLK_s & ~SCLK_prev;
 
     // -------------------------------
     // 3. Shift register to capture SPI bits
     // -------------------------------
     reg [15:0] shift_reg;
-    reg [4:0]  bit_count; // counts 0-15
+    reg [4:0]  bit_count;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             shift_reg <= 16'b0;
             bit_count <= 0;
-        end else if (~nCS_s) begin  // active transaction
+        end else if (~nCS_s) begin
             if (SCLK_rising) begin
                 shift_reg <= {shift_reg[14:0], COPI_s};
                 bit_count <= bit_count + 1;
             end
         end else begin
-            bit_count <= 0; // reset count when transaction ends
+            bit_count <= 0;
         end
     end
 
     // -------------------------------
     // 4. Capture transaction on nCS rising edge
     // -------------------------------
+    wire transaction_ready = nCS_s & ~nCS_sync[0];
     reg [15:0] transaction;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             transaction <= 16'b0;
-        else if (nCS_s & ~nCS_sync[0]) // rising edge of nCS
+        else if (transaction_ready)
             transaction <= shift_reg;
     end
 
     // -------------------------------
     // 5. Decode transaction and write registers
     // -------------------------------
-    wire       rw_bit = transaction[15];      // 1 = write, 0 = read (ignored)
-    wire [6:0] addr   = transaction[14:8];
-    wire [7:0] data   = transaction[7:0];
+    wire rw_bit = transaction[15];
+    wire [6:0] addr = transaction[14:8];
+    wire [7:0] data = transaction[7:0];
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -92,7 +91,7 @@ module spi_peripheral (
             en_reg_pwm_7_0  <= 8'h00;
             en_reg_pwm_15_8 <= 8'h00;
             pwm_duty_cycle  <= 8'h00;
-        end else if (nCS_s & ~nCS_sync[0] & rw_bit) begin
+        end else if (transaction_ready & rw_bit) begin
             case(addr)
                 7'h00: en_reg_out_7_0  <= data;
                 7'h01: en_reg_out_15_8 <= data;

@@ -2,6 +2,10 @@
  * Copyright (c) 2025 Aadhya Anand
  * SPDX-License-Identifier: Apache-2.0
  */
+/*
+ * Copyright (c) 2025 Aadhya Anand
+ * SPDX-License-Identifier: Apache-2.0
+ */
 `default_nettype none
 
 module tt_um_uwasic_onboarding_aadhya_anand (
