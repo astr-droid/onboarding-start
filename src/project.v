@@ -3,6 +3,7 @@
 module tt_um_uwasic_onboarding_aadhya_anand (
     input  wire       clk,
     input  wire       rst_n,
+
     input  wire [7:0] ui_in,    // [0]=SCLK, [1]=COPI, [2]=nCS, others unused
     input  wire [7:0] uio_in,
     output wire [7:0] uo_out,
@@ -39,7 +40,7 @@ module tt_um_uwasic_onboarding_aadhya_anand (
     pwm_peripheral pwm_inst (
         .clk(clk),
         .rst_n(rst_n),
-        .ena(1'b1),                  // <-- always enabled
+        .ena(ena),                  // <-- always enabled
         .en_reg_out_7_0(en_reg_out_7_0),
         .en_reg_out_15_8(en_reg_out_15_8),
         .en_reg_pwm_7_0(en_reg_pwm_7_0),
