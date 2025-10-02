@@ -115,8 +115,10 @@ async def test_pwm_freq(dut):
     # Wait for PWM to stabilize (GL-safe)
     await Timer(50_000, units="ns")
 
-    rising1 = await RisingEdge(dut.uo_out[0])
-    rising2 = await RisingEdge(dut.uo_out[0])
+    # Use a safe wire instead of bit-select
+    pwm_out = dut.uo_out
+    rising1 = await RisingEdge(pwm_out)
+    rising2 = await RisingEdge(pwm_out)
 
     period_ns = rising2.time - rising1.time
     freq = 1e9 / period_ns  # Hz
@@ -131,13 +133,15 @@ async def test_pwm_freq(dut):
 async def test_pwm_duty(dut):
     dut._log.info("Start PWM duty cycle test")
 
+    pwm_out = dut.uo_out  # GL-safe reference
+
     for duty_value in [0x00, 0x80, 0xFF]:
         await send_spi_transaction(dut, 1, 0x04, duty_value)
         await Timer(50_000, units="ns")  # GL-safe wait
 
-        rising = await RisingEdge(dut.uo_out[0])
-        falling = await FallingEdge(dut.uo_out[0])
-        next_rising = await RisingEdge(dut.uo_out[0])
+        rising = await RisingEdge(pwm_out)
+        falling = await FallingEdge(pwm_out)
+        next_rising = await RisingEdge(pwm_out)
 
         high_time = falling.time - rising.time
         period = next_rising.time - rising.time
