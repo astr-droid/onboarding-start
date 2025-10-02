@@ -3,7 +3,7 @@
 module tt_um_uwasic_onboarding_aadhya_anand (
     input  wire       clk,
     input  wire       rst_n,
-
+    input  wire       ena,
     input  wire [7:0] ui_in,    // [0]=SCLK, [1]=COPI, [2]=nCS, others unused
     input  wire [7:0] uio_in,
     output wire [7:0] uo_out,
