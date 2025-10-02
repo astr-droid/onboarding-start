@@ -6,8 +6,8 @@ module tt_um_uwasic_onboarding_aadhya_anand (
     input  wire       ena,
     input  wire [7:0] ui_in,    // [0]=SCLK, [1]=COPI, [2]=nCS, others unused
     input  wire [7:0] uio_in,
-    output wire [7:0] uo_out,
-    output wire [7:0] uio_out,
+    output wire [7:0] uo_out,   // cocotb SPI output check
+    output wire [7:0] uio_out,  // cocotb SPI output check
     output wire [7:0] uio_oe
 );
 
@@ -35,12 +35,16 @@ module tt_um_uwasic_onboarding_aadhya_anand (
         .pwm_duty_cycle(pwm_duty_cycle)
     );
 
+    // Expose SPI outputs directly for cocotb tests
+    assign uo_out  = en_reg_out_7_0;
+    assign uio_out = en_reg_out_15_8;
+
     // Instantiate PWM peripheral
     wire [15:0] pwm_out;
     pwm_peripheral pwm_inst (
         .clk(clk),
         .rst_n(rst_n),
-        .ena(ena),                  // <-- always enabled
+        .ena(ena),
         .en_reg_out_7_0(en_reg_out_7_0),
         .en_reg_out_15_8(en_reg_out_15_8),
         .en_reg_pwm_7_0(en_reg_pwm_7_0),
@@ -49,9 +53,7 @@ module tt_um_uwasic_onboarding_aadhya_anand (
         .out(pwm_out)
     );
 
-    // split 16-bit pwm_out to uo_out (lower 8) and uio_out (upper 8)
-    assign uo_out  = pwm_out[7:0];
-    assign uio_out = pwm_out[15:8];
+    // If you need PWM for external use, you can add a separate output port
 
     // Avoid unused signal warnings
     wire _unused = &{uio_in, ui_in[7:3], 1'b0};
