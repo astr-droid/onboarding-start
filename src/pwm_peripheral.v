@@ -3,6 +3,7 @@
 module pwm_peripheral (
     input  wire        clk,            // 10 MHz
     input  wire        rst_n,
+    input  wire        ena,
     input  wire [7:0]  en_reg_out_7_0,
     input  wire [7:0]  en_reg_out_15_8,
     input  wire [7:0]  en_reg_pwm_7_0,
