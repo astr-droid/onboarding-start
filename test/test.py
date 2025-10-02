@@ -12,7 +12,9 @@ FREQ_TOL = 0.01   # ±1%
 DUTY_TOL = 0.01   # ±1%
 CLK_PERIOD_NS = 100  # 10 MHz
 
+# -------------------------
 # Helper Functions
+# -------------------------
 async def await_half_sclk(dut):
     """Wait for half an SCLK period (~5 us for 100 kHz SPI SCLK)."""
     await ClockCycles(dut.clk, 50)
@@ -55,8 +57,7 @@ async def send_spi_transaction(dut, r_w, address, data):
     sclk = 0
     bit = 0
     dut.ui_in.value = ui_in_logicarray(ncs, bit, sclk)
-    await ClockCycles(dut.clk, 10)
-    return
+    await Timer(10_000, units="ns")  # GL-safe wait for propagation
 
 # -------------------------
 # SPI TEST
@@ -78,26 +79,29 @@ async def test_spi(dut):
 
     # Write transaction: 0x00 → 0xF0
     await send_spi_transaction(dut, 1, 0x00, 0xF0)
-    await ClockCycles(dut.clk, 10)
-    assert dut.uo_out.value == 0xF0, f"Expected 0xF0, got {dut.uo_out.value}"
+    await Timer(5_000, units="ns")
+    val = dut.uo_out.value.integer
+    assert val == 0xF0, f"Expected 0xF0, got {val:#02x}"
 
     # Write transaction: 0x01 → 0xCC
     await send_spi_transaction(dut, 1, 0x01, 0xCC)
-    await ClockCycles(dut.clk, 10)
-    assert dut.uio_out.value == 0xCC, f"Expected 0xCC, got {dut.uio_out.value}"
+    await Timer(5_000, units="ns")
+    val = dut.uio_out.value.integer
+    assert val == 0xCC, f"Expected 0xCC, got {val:#02x}"
 
     # Invalid write: 0x30 → 0xAA
     await send_spi_transaction(dut, 1, 0x30, 0xAA)
-    await ClockCycles(dut.clk, 10)
+    await Timer(5_000, units="ns")
 
     # Read (invalid)
     await send_spi_transaction(dut, 0, 0x30, 0xBE)
-    await ClockCycles(dut.clk, 10)
-    assert dut.uo_out.value == 0xF0
+    await Timer(5_000, units="ns")
+    val = dut.uo_out.value.integer
+    assert val == 0xF0, f"Expected 0xF0, got {val:#02x}"
 
     # Write PWM duty cycle register
     await send_spi_transaction(dut, 1, 0x04, 0xFF)
-    await ClockCycles(dut.clk, 50)
+    await Timer(10_000, units="ns")  # allow PWM to stabilize
 
     dut._log.info("SPI test completed successfully")
 
@@ -108,10 +112,9 @@ async def test_spi(dut):
 async def test_pwm_freq(dut):
     dut._log.info("Start PWM frequency test")
 
-    # Wait for PWM to stabilize
-    await Timer(10_000, units="ns")
+    # Wait for PWM to stabilize (GL-safe)
+    await Timer(50_000, units="ns")
 
-    # Measure two consecutive rising edges
     rising1 = await RisingEdge(dut.uo_out[0])
     rising2 = await RisingEdge(dut.uo_out[0])
 
@@ -128,13 +131,10 @@ async def test_pwm_freq(dut):
 async def test_pwm_duty(dut):
     dut._log.info("Start PWM duty cycle test")
 
-    # Test duty cycles: 0%, 50%, 100%
     for duty_value in [0x00, 0x80, 0xFF]:
-        # Write new duty cycle
         await send_spi_transaction(dut, 1, 0x04, duty_value)
-        await Timer(10_000, units="ns")
+        await Timer(50_000, units="ns")  # GL-safe wait
 
-        # Measure edges
         rising = await RisingEdge(dut.uo_out[0])
         falling = await FallingEdge(dut.uo_out[0])
         next_rising = await RisingEdge(dut.uo_out[0])
@@ -146,5 +146,5 @@ async def test_pwm_duty(dut):
 
         assert abs(measured_duty - expected_duty) < DUTY_TOL, f"Duty mismatch: expected {expected_duty}, got {measured_duty}"
         dut._log.info(f"Duty {expected_duty*100:.1f}% OK, measured {measured_duty*100:.1f}%")
-    
+
     dut._log.info("PWM duty cycle test completed successfully")
