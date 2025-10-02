@@ -10,7 +10,6 @@ module tb ();
   initial begin
     $dumpfile("tb.vcd");
     $dumpvars(0, tb);
-    #1;
   end
 
   // Wire up the inputs and outputs:
@@ -22,6 +21,7 @@ module tb ();
   wire [7:0] uo_out;
   wire [7:0] uio_out;
   wire [7:0] uio_oe;
+
 `ifdef GL_TEST
   wire VPWR = 1'b1;
   wire VGND = 1'b0;
@@ -29,13 +29,10 @@ module tb ();
 
   // Replace tt_um_example with your module name:
   tt_um_uwasic_onboarding_aadhya_anand user_project (
-
-      // Include power ports for the Gate Level test:
 `ifdef GL_TEST
       .VPWR(VPWR),
       .VGND(VGND),
 `endif
-
       .ui_in  (ui_in),    // Dedicated inputs
       .uo_out (uo_out),   // Dedicated outputs
       .uio_in (uio_in),   // IOs: Input path
@@ -45,5 +42,24 @@ module tb ();
       .clk    (clk),      // clock
       .rst_n  (rst_n)     // not reset
   );
+
+  // -------------------------------
+  // Clock + reset initialization
+  // -------------------------------
+  initial begin
+    clk    = 0;
+    rst_n  = 0;
+    ena    = 0;
+    ui_in  = 8'b0;
+    uio_in = 8'b0;
+
+    // Release reset after 100ns
+    #100;
+    rst_n = 1;
+    ena   = 1;
+  end
+
+  // 100MHz clock = 10ns period
+  always #5 clk = ~clk;
 
 endmodule
