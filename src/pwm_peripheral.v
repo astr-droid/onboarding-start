@@ -3,7 +3,7 @@
 module pwm_peripheral (
     input  wire        clk,            // 10 MHz
     input  wire        rst_n,
-    input  wire        ena,             // enable input from top
+    input  wire        ena,            // enable input from top
     input  wire [7:0]  en_reg_out_7_0,
     input  wire [7:0]  en_reg_out_15_8,
     input  wire [7:0]  en_reg_pwm_7_0,
@@ -13,9 +13,9 @@ module pwm_peripheral (
 );
 
     // derive ~3kHz from 10 MHz. Choose divider N so freq = clk / N
-    localparam integer DIV_MAX = 3334;
+    localparam [11:0] DIV_MAX = 12'd3334; // explicitly 12-bit
 
-    reg [11:0] clk_div; // needs to hold up to DIV_MAX
+    reg [11:0] clk_div; 
     reg        pwm_tick;
 
     // prescaler to create pwm period tick
@@ -24,10 +24,10 @@ module pwm_peripheral (
             clk_div  <= 12'd0;
             pwm_tick <= 1'b0;
         end else if (!ena) begin
-            clk_div  <= clk_div;
+            clk_div  <= clk_div; // hold value
             pwm_tick <= 1'b0;
         end else begin
-            if (clk_div == $unsigned(DIV_MAX-1)) begin
+            if (clk_div == (DIV_MAX - 1)) begin
                 clk_div  <= 12'd0;
                 pwm_tick <= 1'b1;
             end else begin
