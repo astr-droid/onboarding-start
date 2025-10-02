@@ -84,15 +84,16 @@ module spi_peripheral (
         if (!rst_n) begin
             transaction_ready <= 1'b0;
         end else begin
-            // Pulse when CS goes high after exactly 16 bits
             transaction_ready <= (ncs_rising && (bit_count == 16));
         end
     end
 
-    // Transaction processing
-    reg rw_bit;
-    reg [6:0] addr;
-    reg [7:0] data;
+    // Transaction processing — make outputs persistent until next SPI write
+    reg [7:0] next_en_reg_out_7_0;
+    reg [7:0] next_en_reg_out_15_8;
+    reg [7:0] next_en_reg_pwm_7_0;
+    reg [7:0] next_en_reg_pwm_15_8;
+    reg [7:0] next_pwm_duty_cycle;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -101,26 +102,30 @@ module spi_peripheral (
             en_reg_pwm_7_0    <= 8'h00;
             en_reg_pwm_15_8   <= 8'h00;
             pwm_duty_cycle    <= 8'h00;
-            rw_bit <= 1'b0;
-            addr <= 7'b0;
-            data <= 8'b0;
+            next_en_reg_out_7_0  <= 8'h00;
+            next_en_reg_out_15_8 <= 8'h00;
+            next_en_reg_pwm_7_0  <= 8'h00;
+            next_en_reg_pwm_15_8 <= 8'h00;
+            next_pwm_duty_cycle  <= 8'h00;
         end else begin
+            // update registers on SPI write
             if (transaction_ready) begin
-                rw_bit <= shift_reg[15];
-                addr   <= shift_reg[14:8];
-                data   <= shift_reg[7:0];
-
-                if (rw_bit && addr <= MAX_ADDR) begin
-                    case (addr)
-                        7'h00: en_reg_out_7_0  <= data;
-                        7'h01: en_reg_out_15_8 <= data;
-                        7'h02: en_reg_pwm_7_0  <= data;
-                        7'h03: en_reg_pwm_15_8 <= data;
-                        7'h04: pwm_duty_cycle  <= data;
-                        default: ;
-                    endcase
-                end
+                case (shift_reg[14:8])
+                    7'h00: next_en_reg_out_7_0  <= shift_reg[7:0];
+                    7'h01: next_en_reg_out_15_8 <= shift_reg[7:0];
+                    7'h02: next_en_reg_pwm_7_0  <= shift_reg[7:0];
+                    7'h03: next_en_reg_pwm_15_8 <= shift_reg[7:0];
+                    7'h04: next_pwm_duty_cycle  <= shift_reg[7:0];
+                    default: ;
+                endcase
             end
+
+            // commit the "next" values every clock so outputs persist
+            en_reg_out_7_0    <= next_en_reg_out_7_0;
+            en_reg_out_15_8   <= next_en_reg_out_15_8;
+            en_reg_pwm_7_0    <= next_en_reg_pwm_7_0;
+            en_reg_pwm_15_8   <= next_en_reg_pwm_15_8;
+            pwm_duty_cycle    <= next_pwm_duty_cycle;
         end
     end
 
