@@ -3,7 +3,7 @@
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, Timer
+from cocotb.triggers import RisingEdge, FallingEdge, Timer, ClockCycles
 from cocotb.types import LogicArray
 
 # Constants
@@ -22,9 +22,7 @@ def ui_in_logicarray(ncs, bit, sclk):
     return LogicArray(f"00000{ncs}{bit}{sclk}")
 
 async def send_spi_transaction(dut, r_w, address, data):
-    """
-    Send an SPI transaction (1-bit RW + 7-bit addr + 8-bit data)
-    """
+    """Send an SPI transaction (1-bit RW + 7-bit addr + 8-bit data)"""
     first_byte = (int(r_w) << 7) | address
     ncs = 0
     sclk = 0
@@ -57,7 +55,7 @@ async def send_spi_transaction(dut, r_w, address, data):
     sclk = 0
     bit = 0
     dut.ui_in.value = ui_in_logicarray(ncs, bit, sclk)
-    await ClockCycles(dut.clk, 50)
+    await ClockCycles(dut.clk, 10)
     return
 
 # -------------------------
@@ -80,22 +78,22 @@ async def test_spi(dut):
 
     # Write transaction: 0x00 → 0xF0
     await send_spi_transaction(dut, 1, 0x00, 0xF0)
-    await ClockCycles(dut.clk, 50)
-    assert dut.pwm_top_out.value[7:0] == 0xF0, f"Expected 0xF0, got {dut.pwm_top_out.value[7:0]}"
+    await ClockCycles(dut.clk, 10)
+    assert dut.uo_out.value == 0xF0, f"Expected 0xF0, got {dut.uo_out.value}"
 
     # Write transaction: 0x01 → 0xCC
     await send_spi_transaction(dut, 1, 0x01, 0xCC)
-    await ClockCycles(dut.clk, 50)
-    assert dut.pwm_top_out.value[15:8] == 0xCC, f"Expected 0xCC, got {dut.pwm_top_out.value[15:8]}"
+    await ClockCycles(dut.clk, 10)
+    assert dut.uio_out.value == 0xCC, f"Expected 0xCC, got {dut.uio_out.value}"
 
     # Invalid write: 0x30 → 0xAA
     await send_spi_transaction(dut, 1, 0x30, 0xAA)
-    await ClockCycles(dut.clk, 50)
+    await ClockCycles(dut.clk, 10)
 
     # Read (invalid)
     await send_spi_transaction(dut, 0, 0x30, 0xBE)
-    await ClockCycles(dut.clk, 50)
-    assert dut.pwm_top_out.value[7:0] == 0xF0
+    await ClockCycles(dut.clk, 10)
+    assert dut.uo_out.value == 0xF0
 
     # Write PWM duty cycle register
     await send_spi_transaction(dut, 1, 0x04, 0xFF)
@@ -111,11 +109,11 @@ async def test_pwm_freq(dut):
     dut._log.info("Start PWM frequency test")
 
     # Wait for PWM to stabilize
-    await ClockCycles(dut.clk, 500)
+    await Timer(10_000, units="ns")
 
     # Measure two consecutive rising edges
-    rising1 = await RisingEdge(dut.pwm_top_out[0])
-    rising2 = await RisingEdge(dut.pwm_top_out[0])
+    rising1 = await RisingEdge(dut.uo_out[0])
+    rising2 = await RisingEdge(dut.uo_out[0])
 
     period_ns = rising2.time - rising1.time
     freq = 1e9 / period_ns  # Hz
@@ -134,12 +132,12 @@ async def test_pwm_duty(dut):
     for duty_value in [0x00, 0x80, 0xFF]:
         # Write new duty cycle
         await send_spi_transaction(dut, 1, 0x04, duty_value)
-        await ClockCycles(dut.clk, 500)
+        await Timer(10_000, units="ns")
 
         # Measure edges
-        rising = await RisingEdge(dut.pwm_top_out[0])
-        falling = await FallingEdge(dut.pwm_top_out[0])
-        next_rising = await RisingEdge(dut.pwm_top_out[0])
+        rising = await RisingEdge(dut.uo_out[0])
+        falling = await FallingEdge(dut.uo_out[0])
+        next_rising = await RisingEdge(dut.uo_out[0])
 
         high_time = falling.time - rising.time
         period = next_rising.time - rising.time
@@ -148,5 +146,5 @@ async def test_pwm_duty(dut):
 
         assert abs(measured_duty - expected_duty) < DUTY_TOL, f"Duty mismatch: expected {expected_duty}, got {measured_duty}"
         dut._log.info(f"Duty {expected_duty*100:.1f}% OK, measured {measured_duty*100:.1f}%")
-
+    
     dut._log.info("PWM duty cycle test completed successfully")
