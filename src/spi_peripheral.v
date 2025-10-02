@@ -78,21 +78,14 @@ module spi_peripheral (
         end
     end
 
-    // Transaction ready flags
+    // One-cycle transaction_ready pulse
     reg transaction_ready;
-    reg transaction_processed;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             transaction_ready <= 1'b0;
-            transaction_processed <= 1'b0;
         end else begin
-            if (ncs_rising && bit_count == 16) begin
-                transaction_ready <= 1'b1;
-                transaction_processed <= 1'b0;
-            end else if (transaction_processed) begin
-                transaction_ready <= 1'b0;
-                transaction_processed <= 1'b0;
-            end
+            // Pulse when CS goes high after exactly 16 bits
+            transaction_ready <= (ncs_rising && (bit_count == 16));
         end
     end
 
@@ -112,7 +105,7 @@ module spi_peripheral (
             addr <= 7'b0;
             data <= 8'b0;
         end else begin
-            if (transaction_ready && !transaction_processed) begin
+            if (transaction_ready) begin
                 rw_bit <= shift_reg[15];
                 addr   <= shift_reg[14:8];
                 data   <= shift_reg[7:0];
@@ -127,9 +120,10 @@ module spi_peripheral (
                         default: ;
                     endcase
                 end
-                transaction_processed <= 1'b1;
             end
         end
     end
 
 endmodule
+
+`default_nettype wire
